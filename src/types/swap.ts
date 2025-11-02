@@ -14,6 +14,11 @@ export interface SwapOptions {
   isExactInput: boolean;
 }
 
+export interface QuoteAndSwapOptions {
+
+  isExactInput: boolean;
+}
+
 /**
  * Parameters for executing a swap transaction
  *
@@ -41,6 +46,21 @@ export interface SwapParams {
    */
   minTokenOut: bigint;
   /** Wallet executing the swap */
+  payer: PublicKey;
+}
+
+export interface QuoteAndSwapParams {
+
+  tokenIn: PublicKey;
+
+  tokenOut: PublicKey;
+
+  amount: bigint;
+
+  options: QuoteAndSwapOptions;
+
+  slippage: number;
+
   payer: PublicKey;
 }
 

@@ -31,6 +31,7 @@ import {
   GetMaxAmountOutWithFeeResponse,
   QuoteParams,
   SwapParams,
+  QuoteAndSwapParams,
   GetMaxAmountOutWithFeeParams,
   CreatePositionParams,
   AddLiquidityByShapeParams,
@@ -723,6 +724,61 @@ export class SarosDLMMPair extends SarosBaseService {
     return tx;
   }
 
+  public async getQuoteAndSwap(params: QuoteAndSwapParams): Promise<Transaction> {
+
+    const {
+      tokenIn,
+      tokenOut,
+      amount,
+      options: { isExactInput },
+      slippage,
+      payer,
+    } = params;
+
+    if (amount <= 0n) throw SarosDLMMError.ZeroAmount();
+    if (slippage < 0 || params.slippage >= 100) throw SarosDLMMError.InvalidSlippage();
+
+    try {
+      const { tokenX, tokenY } = this.metadata;
+
+      const swapForY = this.getSwapForY(tokenIn, tokenX.mintAddress);
+
+      const quoteParams = { amount, options: { swapForY, isExactInput }, slippage };
+
+      const { amountIn, amountOut } = await this.calculateInOutAmount(quoteParams);
+
+      let maxAmountIn = amountIn;
+      let minAmountOut = amountOut;
+
+      if (isExactInput) {
+        minAmountOut = getMinOutputWithSlippage(amountOut, slippage);
+      } else {
+        maxAmountIn = getMaxInputWithSlippage(amountIn, slippage);
+      }
+
+      const { maxAmountOut } = await this.getMaxAmountOutWithFee({
+        amount: amountIn,
+        swapForY,
+        decimalTokenX: tokenX.decimals,
+        decimalTokenY: tokenY.decimals,
+      });
+
+      const priceImpact = getPriceImpact(amountOut, maxAmountOut);
+
+      const tx = await this.swap({
+        amount: amount,
+        minTokenOut: isExactInput ? minAmountOut : maxAmountIn,
+        options: { swapForY: swapForY, isExactInput: isExactInput },
+        payer,
+      });
+
+      return tx;
+      
+    } catch (error) {
+      SarosDLMMError.handleError(error, SarosDLMMError.QuoteCalculationFailed());
+    }
+  }
+
   /**
    * Calculate maximum output
    */
@@ -1033,6 +1089,14 @@ export class SarosDLMMPair extends SarosBaseService {
       return pairId - 1;
     } else {
       return pairId + 1;
+    }
+  }
+
+  private getSwapForY(amountIn: PublicKey, tokenXMint: PublicKey): boolean {
+    if(amountIn.toBase58() === tokenXMint.toBase58()) {
+      return true;
+    } else {
+      return false;
     }
   }
 }
