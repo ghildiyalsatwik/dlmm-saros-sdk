@@ -24,6 +24,7 @@ import {
   DLMMPairAccount,
   PairMetadata,
   QuoteResponse,
+  QuoteAndSwapResponse,
   BinArray,
   RemoveLiquidityResponse,
   PositionAccount,
@@ -724,8 +725,7 @@ export class SarosDLMMPair extends SarosBaseService {
     return tx;
   }
 
-  public async getQuoteAndSwap(params: QuoteAndSwapParams): Promise<Transaction> {
-
+  public async getQuoteAndSwap(params: QuoteAndSwapParams): Promise<QuoteAndSwapResponse> {
     const {
       tokenIn,
       tokenOut,
@@ -766,14 +766,22 @@ export class SarosDLMMPair extends SarosBaseService {
       const priceImpact = getPriceImpact(amountOut, maxAmountOut);
 
       const tx = await this.swap({
-        amount: amount,
+        amount: isExactInput ? amountIn : amountOut,
         minTokenOut: isExactInput ? minAmountOut : maxAmountIn,
         options: { swapForY: swapForY, isExactInput: isExactInput },
         payer,
       });
 
-      return tx;
-      
+      return {
+        tx: tx,
+        quote: {
+          amountIn: amountIn,
+          amountOut: amountOut,
+          minTokenOut: isExactInput ? minAmountOut : maxAmountIn,
+          priceImpact: priceImpact,
+        }
+      }
+
     } catch (error) {
       SarosDLMMError.handleError(error, SarosDLMMError.QuoteCalculationFailed());
     }
@@ -1092,8 +1100,8 @@ export class SarosDLMMPair extends SarosBaseService {
     }
   }
 
-  private getSwapForY(amountIn: PublicKey, tokenXMint: PublicKey): boolean {
-    if(amountIn.toBase58() === tokenXMint.toBase58()) {
+  private getSwapForY(tokenIn: PublicKey, tokenXMint: PublicKey): boolean {
+    if(tokenIn.toBase58() === tokenXMint.toBase58()) {
       return true;
     } else {
       return false;

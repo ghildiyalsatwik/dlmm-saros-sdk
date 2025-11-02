@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Transaction } from '@solana/web3.js';
 
 /**
  * BigInt Usage Pattern
@@ -62,6 +62,23 @@ export interface QuoteAndSwapParams {
   slippage: number;
 
   payer: PublicKey;
+}
+
+export interface QuoteAndSwapResponse {
+
+  tx: Transaction;
+
+  quote: {
+
+    amountIn: bigint;
+
+    amountOut: bigint;
+
+    priceImpact: number;
+
+    minTokenOut: bigint;
+
+  }
 }
 
 /** Parameters for getting a swap quote */
